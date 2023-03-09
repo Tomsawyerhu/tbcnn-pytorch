@@ -3,7 +3,7 @@ import math
 import torch
 from torch import nn
 
-from tbcnn.cuda_utils import get_tensor
+from cuda_utils import get_tensor
 
 
 class ConvolutionLayer(nn.Module):
@@ -16,9 +16,9 @@ class ConvolutionLayer(nn.Module):
         self.conv_nodes = nn.ModuleList([ConvNode(config=config) for _ in range(self.conv_num)])
         # self.conv_node = ConvNode(config=config)
 
-    def forward(self, nodes, children,children_embedding):
+    def forward(self, nodes, children, children_embedding):
         nodes = [
-            conv_node(nodes, children,children_embedding)
+            conv_node(nodes, children, children_embedding)
             for conv_node in self.conv_nodes
         ]
 
@@ -26,12 +26,21 @@ class ConvolutionLayer(nn.Module):
         # return self.conv_node(nodes, children,children_embedding)
 
 
-class PoolingLayer(nn.Module):
+class MaxPoolingLayer(nn.Module):
     def __init__(self):
-        super(PoolingLayer, self).__init__()
+        super(MaxPoolingLayer, self).__init__()
 
     def forward(self, nodes):
         pooled = torch.max(nodes, dim=1)[0]
+        return pooled
+
+
+class MeanPoolingLayer(nn.Module):
+    def __init__(self):
+        super(MeanPoolingLayer, self).__init__()
+
+    def forward(self, nodes):
+        pooled = torch.mean(nodes, dim=-2)
         return pooled
 
 
@@ -49,7 +58,7 @@ class ConvNode(nn.Module):
         self.conv = nn.Parameter(
             torch.normal(size=(self.config['output_size'],), std=math.sqrt(2.0 / self.config['feature_size']), mean=0))
 
-    def forward(self, nodes, children,children_vectors):
+    def forward(self, nodes, children, children_vectors):
         # nodes is shape (batch_size x max_tree_size x feature_size)
         # children is shape (batch_size x max_tree_size x max_children)
 
@@ -180,5 +189,3 @@ def eta_l(children, coef_t, coef_r):
     return torch.multiply(
         torch.multiply((1.0 - coef_t), (1.0 - coef_r)), mask
     )
-
-

@@ -3,7 +3,7 @@ import pickle
 from enum import Enum
 
 import pandas as pd
-import youtokentome as yttm
+# import youtokentome as yttm
 
 
 class TokenizationConstant(Enum):
@@ -174,42 +174,42 @@ class VocabDict(VocabDictBase):
         return len(self.word2index)
 
 
-class BPEVocabDict(VocabDictBase):
-    def __init__(self, name, file_name):
-        VocabDictBase.__init__(self, name, file_name)
-        self.bpe_model = None
-
-    def load(self):
-        """
-        Load the BPE Model
-        :return:
-        """
-        self.bpe_model = yttm.BPE(model=self.file_name)
-
-    def convert_sent_to_ids(self, sent, eos=False):
-        enc_seqs = self.bpe_model.encode(sent, output_type=yttm.OutputType.ID,
-                                         bos=eos, eos=eos)
-        return enc_seqs
-
-    def __len__(self):
-        """
-        Size of the BPE Model
-        :return: Return Size of BPE Model
-        """
-        return self.bpe_model.vocab_size()
-
-    def vocab_size(self):
-        """
-        Return the vocab size
-        :return:
-        """
-        return self.bpe_model.vocab_size()
-
-    def is_bpe(self):
-        return True
-
-    def convert_ids_to_sentence(self, seqs):
-        return self.bpe_model.decode(seqs)
+# class BPEVocabDict(VocabDictBase):
+#     def __init__(self, name, file_name):
+#         VocabDictBase.__init__(self, name, file_name)
+#         self.bpe_model = None
+#
+#     def load(self):
+#         """
+#         Load the BPE Model
+#         :return:
+#         """
+#         self.bpe_model = yttm.BPE(model=self.file_name)
+#
+#     def convert_sent_to_ids(self, sent, eos=False):
+#         enc_seqs = self.bpe_model.encode(sent, output_type=yttm.OutputType.ID,
+#                                          bos=eos, eos=eos)
+#         return enc_seqs
+#
+#     def __len__(self):
+#         """
+#         Size of the BPE Model
+#         :return: Return Size of BPE Model
+#         """
+#         return self.bpe_model.vocab_size()
+#
+#     def vocab_size(self):
+#         """
+#         Return the vocab size
+#         :return:
+#         """
+#         return self.bpe_model.vocab_size()
+#
+#     def is_bpe(self):
+#         return True
+#
+#     def convert_ids_to_sentence(self, seqs):
+#         return self.bpe_model.decode(seqs)
 
 
 

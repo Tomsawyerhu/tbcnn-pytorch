@@ -5,11 +5,33 @@ import torch
 from sklearn.metrics import accuracy_score, recall_score, precision_score, roc_auc_score, f1_score
 from torch.utils.data import DataLoader
 
-from tbcnn import cuda_utils
-from tbcnn.dataset import collate, TreeDataset
-from tbcnn.model import TBCnnModel
+import cuda_utils
+from dataset import collate, TreeDataset
+from model import TBCnnModel
 
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+
+config = {
+    'max_tree_size': 3000,
+    'max_children_size': 200,
+    'conv_layer_num': 1,
+    'conv_output': 128,
+    'class_num': 2,
+    'max_epoch': 50,
+    'batch_size': 4,
+    'embedding_dim': 128,
+    'embedding_type': "structure",
+    'lr': 0.001,
+    'use_cuda': torch.cuda.is_available(),
+    'node_vocabulary_dictionary_path': "./data/node_vocab_dict.pkl",
+    'token_vocabulary_dictionary_path': "./data/token_vocab_dict.pkl",
+    'max_token_length': 8,
+}
+
+
+def pretty_format(metrics: dict,
+                  metric_headers=('accuracy', 'recall', 'precision', 'f1', 'auc', 'TP', 'FP', 'TN', 'FN')):
+    return '|'.join(["{}: {}".format(x, metrics[x] if type(metrics[x])==int else round(metrics[x],4)) for x in metric_headers])
 
 
 def evaluate_metrics(preds, labels):
@@ -29,34 +51,24 @@ def evaluate_metrics(preds, labels):
     metrics['precision'] = prec
     metrics['f1'] = f1
     metrics['auc'] = auc
-    positive_count = 0
-    negative_count = 0
-    for item in preds:
-        if item == 0:
-            negative_count += 1
-        if item == 1:
-            positive_count += 1
-    metrics['positive_count'] = "%s/%s" % (str(positive_count), str(len(preds)))
-    metrics['negative_count'] = "%s/%s" % (str(negative_count), str(len(preds)))
+    TP, FP, TN, FN, i = 0, 0, 0, 0, 0
+    for i in range(len(preds)):
+        if preds[i] == 1 and labels[i] == 1:
+            TP += 1
+        elif preds[i] == 1 and labels[i] == 0:
+            FP += 1
+        elif preds[i] == 0 and labels[i] == 0:
+            TN += 1
+        elif preds[i] == 0 and labels[i] == 1:
+            FN += 1
+    metrics['TP'], metrics['FP'], metrics['TN'], metrics['FN'] = TP, FP, TN, FN
+
     return metrics
 
 
 if __name__ == '__main__':
-    config = {
-        'max_tree_size': 5000,
-        'max_children_size': 200,
-        'conv_layer_num': 1,
-        'conv_output': 128,
-        'class_num': 2,
-        'max_epoch': 50,
-        'batch_size': 16,
-        'embedding_dim': 128,
-        'lr': 0.001,
-        'use_cuda': torch.cuda.is_available(),
-        'vocabulary_dictionary_path': "./data/node_vocab_dict.pkl"
-    }
 
-    model_save_path="./trained_models/model.pth"
+    model_save_path = "./trained_models/model.pth"
     train_data_file_path = "./train"
     val_data_file_path = "./val"
     train_dataset = TreeDataset(dir=train_data_file_path)
@@ -97,7 +109,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             train_probs, train_loss, train_labels = model(*batch_dict)
             train_loss_all.append(train_loss.item())
-            print(train_loss)
+            # print(train_loss)
             train_best_preds = np.asarray([np.argmax(line) for line in train_probs.cpu().tolist()])
             train_preds_all.extend(train_best_preds)
             train_labels_all.extend(train_labels.cpu().tolist())
@@ -108,7 +120,7 @@ if __name__ == '__main__':
         train_metrics = evaluate_metrics(train_preds_all, train_labels_all)
         train_metrics["loss"] = sum(train_loss_all) / len(train_loss_all)
         print("train evaluation: ")
-        print(train_metrics)
+        print(pretty_format(train_metrics))
 
         for idx, batch_dict in enumerate(val_dataloader):
             batch_dict = tuple([torch.stack(x, dim=0) for x in batch_dict])
@@ -126,7 +138,9 @@ if __name__ == '__main__':
         val_metrics["loss"] = sum(val_loss_all) / len(val_loss_all)
         print("val evaluation: ")
         if best_val_acc <= val_metrics['accuracy']:
-            print("------------------------> best accuracy from {} to {} <------------------------".format(best_val_acc, val_metrics['accuracy']))
+            print("------------------------> best accuracy from {} to {} <------------------------".format(best_val_acc,
+                                                                                                           val_metrics[
+                                                                                                               'accuracy']))
             best_val_acc = val_metrics['accuracy']
             torch.save(model, model_save_path)
-        print(val_metrics)
+        print(pretty_format(val_metrics))
